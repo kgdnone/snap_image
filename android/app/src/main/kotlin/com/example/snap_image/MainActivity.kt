@@ -23,8 +23,16 @@ class MainActivity : FlutterActivity() {
             MethodChannel(flutterEngine!!.dartExecutor.binaryMessenger, methodChannelName)
         methodChannel.setMethodCallHandler { call, result ->
             if (call.method == "snap") {
-                val origin = call.argument<String>("origin").toString()
-                val mask = call.argument<String>("mask").toString()
+                var origin = ""
+                var mask = ""
+                try {
+                    origin = call.argument<String>("origin").toString()
+                    mask = call.argument<String>("mask").toString()
+                } catch (e: Exception) {
+                    result.success(mapOf("status" to "error", "data" to e.message))
+                    return@setMethodCallHandler
+                }
+
                 val ret = snapImage(origin, mask)
                 result.success(ret)
             }
@@ -69,22 +77,20 @@ class MainActivity : FlutterActivity() {
             // 遍历遮罩的像素，是否为白色。
             // 如果是，将源图的像素复制到结果图中
             // 如果不是，计算一个新的像素，并复制到结果图中
-            for (y in 0 until maskBitmap.height) {
-                for (x in 0 until maskBitmap.width) {
-                    val index = y * maskBitmap.width + x
-                    val maskPixel = pixelsMask[index]
-                    if (isWhitePixel(maskPixel)) {
-                        pixelsResult[index] = pixelsOrigin[index]
-                    } else {
-                        pixelsResult[index] = blendPixel(
-                            x,
-                            y,
-                            maskBitmap.width,
-                            maskBitmap.height,
-                            pixelsOrigin,
-                            pixelsMask
-                        )
-                    }
+
+            for (index in pixelsMask.indices) {
+                val maskPixel = pixelsMask[index]
+                if (isWhitePixel(maskPixel)) {
+                    pixelsResult[index] = pixelsOrigin[index]
+                } else {
+                    pixelsResult[index] = blendPixel(
+                        index % maskBitmap.width,
+                        index / maskBitmap.width,
+                        maskBitmap.width,
+                        maskBitmap.height,
+                        pixelsOrigin,
+                        pixelsMask
+                    )
                 }
             }
 
@@ -104,16 +110,16 @@ class MainActivity : FlutterActivity() {
      * 判断像素是否为白色
      */
     private fun isWhitePixel(pixel: Int): Boolean {
-        return Color.alpha(pixel) == 255 && Color.red(pixel) == 255 && Color.green(pixel) == 255 && Color.blue(
+        return Color.alpha(pixel) == 255 && Color.red(pixel) >= 230 && Color.green(pixel) >= 230 && Color.blue(
             pixel
-        ) == 255
+        ) >= 230
     }
 
 
     /**
      * 计算一个新的像素
-     * 大概逻辑：计算遮罩当前像素点与周围80个像素点，是否白色。
-     * 如果不是，那就将这81个像素点的透明度、RGB值相加，然后计算出平均值
+     * 大概逻辑：计算遮罩当前像素点与周围n个像素点，是否白色。
+     * 如果不是，那就将这n+1个像素点的透明度、RGB值相加，然后计算出平均值
      */
     private fun blendPixel(
         x: Int,
@@ -128,10 +134,12 @@ class MainActivity : FlutterActivity() {
         var greenSum = 0
         var blueSum = 0
         var pixelCount = 0
+        val kernelRadius = 2
+        val kernelSize = (kernelRadius * 2 + 1) * (kernelRadius * 2 + 1)
 
         // 计算当前像素周围的像素
-        for (dy in -4..4) {
-            for (dx in -4..4) {
+        for (dy in -kernelRadius..kernelRadius) {
+            for (dx in -kernelRadius..kernelRadius) {
                 val nx = x + dx
                 val ny = y + dy
                 //判断是否越界
@@ -159,7 +167,7 @@ class MainActivity : FlutterActivity() {
         }
 
         //0个不用算，直接返回，如果周围都是黑的，也不用算，直接返回透明
-        if (pixelCount == 0 || pixelCount == 81) {
+        if (pixelCount == 0 || pixelCount == kernelSize) {
             return Color.TRANSPARENT
         }
 

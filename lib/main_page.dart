@@ -5,13 +5,13 @@ import 'package:snap_image/image_provider.dart';
 class MainPage extends ConsumerWidget {
   MainPage({super.key});
 
-  final _imgFamily = imageProvider(
+  final _imageProvider = imageProvider(
       {'origin': 'assets/origin.png', 'mask': 'assets/mask.jpeg'});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     var size = MediaQuery.of(context).size;
-    var imageFuture = ref.watch(_imgFamily);
+    var imageFuture = ref.watch(_imageProvider);
 
     return Scaffold(
       appBar: AppBar(

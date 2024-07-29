@@ -42,7 +42,7 @@ import CoreGraphics
         let totalBytes = bytesPerRow * height
           
         // 分配内存来存储位图数据
-        let pixelData = UnsafeMutablePointer<UInt32>.allocate(capacity: totalBytes / MemoryLayout<UInt32>.size)
+        let pixelData = UnsafeMutablePointer<UInt32>.allocate(capacity: totalBytes)
         defer { pixelData.deallocate() } // 使用defer确保内存被释放
           
         // 创建位图上下文
